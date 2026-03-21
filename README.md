@@ -5,7 +5,7 @@ KMP user management app using the [GoRest API](https://gorest.co.in/). Built wit
 ## Setup
 
 1. Get a GoRest API token from https://gorest.co.in/consumer/login
-2. Set it in `MainActivity.kt` → `ApiConfig.token = "your-token"`
+2. Add `GOREST_TOKEN=your-token` to `local.properties`
 3. Open in Android Studio and run the `composeApp` configuration
 4. For iOS: open `iosApp/iosApp.xcodeproj` in Xcode
 5. Run tests: `./gradlew allTests` (requires Xcode CLI tools for iOS targets, or `./gradlew testDebugUnitTest` for Android-only)
@@ -18,12 +18,13 @@ Multi-module MVI. Room is the single source of truth - the UI observes the datab
 
 ```
 core/                  # Shared utilities - networking, error types, theme, UI components
-feature-users/         # Users feature - domain, data, presentation (self-contained)
-shared/                # Aggregation - Room database, DI wiring, iOS framework export
+feature-users/         # Domain (models, repo interface, use cases) + Presentation (MVI, screens)
+shared/                # Data layer (Room, API, DTOs, mapper, repo impl) + DI wiring + iOS framework
 composeApp/            # Android entry point
+iosApp/                # iOS entry point (SwiftUI host)
 ```
 
-Each feature module owns its full stack (domain models, repository, use cases, screens). The `shared` module wires everything together - it hosts the Room database, Koin modules, and the iOS framework.
+Feature modules own domain + presentation. The data layer lives in `shared` alongside Room (KSP requires entities and `@Database` in the same module). DI wiring in `shared` connects data implementations to domain interfaces.
 
 The presentation layer follows MVI: intents go in, the ViewModel runs use cases and emits results, a pure reducer produces the next state. One-shot events (snackbar, toasts) go through a `Channel<Effect>`.
 
