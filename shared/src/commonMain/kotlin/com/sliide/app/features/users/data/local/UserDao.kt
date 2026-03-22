@@ -22,12 +22,15 @@ interface UserDao {
     @Query("DELETE FROM users WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("DELETE FROM users")
+    suspend fun deleteAll()
+
     @Query("DELETE FROM users WHERE id NOT IN (:ids)")
     suspend fun deleteNotIn(ids: List<Long>)
 
     @Transaction
     suspend fun replaceAll(users: List<UserEntity>) {
+        deleteAll()
         upsert(users)
-        deleteNotIn(users.map { it.id })
     }
 }

@@ -3,6 +3,7 @@ package com.sliide.app.features.users.presentation.userlist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sliide.app.core.common.DomainResult
+import com.sliide.app.features.users.domain.model.User
 import com.sliide.app.features.users.domain.repository.UserRepository
 import com.sliide.app.features.users.domain.usecase.DeleteUserUseCase
 import com.sliide.app.features.users.domain.usecase.GetUsersUseCase
@@ -30,13 +31,50 @@ class UserListViewModel(
 
     init {
         observeUsers()
-        onIntent(UserListIntent.LoadUsers)
+        loadUsers()
+    }
+
+    private fun observeUsers() {
+        viewModelScope.launch {
+            getUsers().collect { users ->
+                emit(UserListResult.UsersLoaded(users))
+            }
+        }
+    }
+
+    private fun loadUsers() {
+        emit(UserListResult.Loading)
+        viewModelScope.launch {
+            when (val result = repository.refresh()) {
+                is DomainResult.Success -> emit(UserListResult.PageLoaded(hasMore = true))
+                is DomainResult.Failure -> emit(UserListResult.Error(result.error))
+            }
+        }
+    }
+
+    private fun refreshUsers() {
+        emit(UserListResult.Refreshing)
+        viewModelScope.launch {
+            when (val result = repository.refresh()) {
+                is DomainResult.Success -> emit(UserListResult.PageLoaded(hasMore = true))
+                is DomainResult.Failure -> emit(UserListResult.Error(result.error))
+            }
+        }
+    }
+
+    private fun loadMore() {
+        if (_state.value.isLoadingMore || !_state.value.hasMorePages) return
+        emit(UserListResult.LoadingMore)
+        viewModelScope.launch {
+            val hasMore = repository.loadNextPage()
+            emit(UserListResult.PageLoaded(hasMore = hasMore))
+        }
     }
 
     fun onIntent(intent: UserListIntent) {
         when (intent) {
-            is UserListIntent.LoadUsers -> loadUsers()
             is UserListIntent.RefreshUsers -> refreshUsers()
+            is UserListIntent.LoadMore -> loadMore()
             is UserListIntent.RequestDelete -> emit(UserListResult.DeleteConfirmShown(intent.user))
             is UserListIntent.DismissDeleteConfirm -> emit(UserListResult.DeleteConfirmDismissed)
             is UserListIntent.ConfirmDelete -> confirmDelete()
@@ -45,26 +83,6 @@ class UserListViewModel(
             is UserListIntent.DismissError -> emit(UserListResult.ErrorDismissed)
             is UserListIntent.ScrollToTop -> viewModelScope.launch {
                 _effects.send(UserListEffect.ScrollToTop)
-            }
-        }
-    }
-
-    private fun observeUsers() {
-        viewModelScope.launch {
-            getUsers().collect { users -> emit(UserListResult.UsersLoaded(users)) }
-        }
-    }
-
-    private fun loadUsers() = refresh(isInitialLoad = true)
-
-    private fun refreshUsers() = refresh(isInitialLoad = false)
-
-    private fun refresh(isInitialLoad: Boolean) {
-        emit(if (isInitialLoad) UserListResult.Loading else UserListResult.Refreshing)
-        viewModelScope.launch {
-            when (val result = repository.refreshFromLastPage()) {
-                is DomainResult.Failure -> emit(UserListResult.Error(result.error))
-                is DomainResult.Success -> {}
             }
         }
     }

@@ -24,33 +24,67 @@ class UserListReducerTest {
 
     @Test
     fun `loading sets isLoading and clears error`() {
-        val state = UserListState()
+        val state = UserListState(error = DomainError.NetworkUnavailable)
         val next = reducer.reduce(state, UserListResult.Loading)
         assertTrue(next.isLoading)
         assertNull(next.error)
     }
 
     @Test
-    fun `users loaded sets list and clears loading`() {
-        val state = UserListState(isLoading = true)
-        val next = reducer.reduce(state, UserListResult.UsersLoaded(listOf(testUser)))
-        assertEquals(listOf(testUser), next.users)
-        assertFalse(next.isLoading)
+    fun `refreshing sets isRefreshing and clears error`() {
+        val state = UserListState(error = DomainError.NetworkUnavailable)
+        val next = reducer.reduce(state, UserListResult.Refreshing)
+        assertTrue(next.isRefreshing)
+        assertNull(next.error)
     }
 
     @Test
-    fun `error sets error and clears loading`() {
+    fun `loading more sets isLoadingMore`() {
+        val state = UserListState()
+        val next = reducer.reduce(state, UserListResult.LoadingMore)
+        assertTrue(next.isLoadingMore)
+    }
+
+    @Test
+    fun `page loaded clears loading flags and sets hasMorePages`() {
+        val state = UserListState(isLoading = true, isRefreshing = true, isLoadingMore = true)
+        val next = reducer.reduce(state, UserListResult.PageLoaded(hasMore = false))
+        assertFalse(next.isLoading)
+        assertFalse(next.isRefreshing)
+        assertFalse(next.isLoadingMore)
+        assertFalse(next.hasMorePages)
+    }
+
+    @Test
+    fun `users loaded updates user list without clearing loading`() {
+        val users = listOf(testUser)
+        val state = UserListState(isLoading = true)
+        val next = reducer.reduce(state, UserListResult.UsersLoaded(users))
+        assertEquals(users, next.users)
+        assertTrue(next.isLoading)
+    }
+
+    @Test
+    fun `error sets error state and clears loading flags`() {
         val state = UserListState(isLoading = true)
         val next = reducer.reduce(state, UserListResult.Error(DomainError.NetworkUnavailable))
         assertEquals(DomainError.NetworkUnavailable, next.error)
         assertFalse(next.isLoading)
+        assertFalse(next.isRefreshing)
+        assertFalse(next.isLoadingMore)
     }
 
     @Test
-    fun `user deleted removes from list and tracks deleted user`() {
-        val state = UserListState(users = listOf(testUser), deleteConfirmUser = testUser)
+    fun `error dismissed clears error`() {
+        val state = UserListState(error = DomainError.NetworkUnavailable)
+        val next = reducer.reduce(state, UserListResult.ErrorDismissed)
+        assertNull(next.error)
+    }
+
+    @Test
+    fun `user deleted tracks deleted user and clears confirm`() {
+        val state = UserListState(deleteConfirmUser = testUser)
         val next = reducer.reduce(state, UserListResult.UserDeleted(testUser.id, testUser))
-        assertTrue(next.users.isEmpty())
         assertNull(next.deleteConfirmUser)
         assertEquals(testUser, next.lastDeletedUser)
     }
@@ -63,20 +97,10 @@ class UserListReducerTest {
     }
 
     @Test
-    fun `user restored adds back to list sorted by id`() {
-        val other = testUser.copy(id = 3L)
-        val state = UserListState(users = listOf(other))
+    fun `user restored clears last deleted user`() {
+        val state = UserListState(lastDeletedUser = testUser)
         val next = reducer.reduce(state, UserListResult.UserRestored(testUser))
-        assertEquals(listOf(other, testUser), next.users)
         assertNull(next.lastDeletedUser)
-    }
-
-    @Test
-    fun `refreshing sets flag and clears error`() {
-        val state = UserListState(error = DomainError.Timeout)
-        val next = reducer.reduce(state, UserListResult.Refreshing)
-        assertTrue(next.isRefreshing)
-        assertNull(next.error)
     }
 
     @Test
@@ -91,12 +115,5 @@ class UserListReducerTest {
         val state = UserListState()
         val next = reducer.reduce(state, UserListResult.UserSelected(testUser))
         assertEquals(testUser, next.selectedUser)
-    }
-
-    @Test
-    fun `error dismissed clears error`() {
-        val state = UserListState(error = DomainError.NetworkUnavailable)
-        val next = reducer.reduce(state, UserListResult.ErrorDismissed)
-        assertNull(next.error)
     }
 }

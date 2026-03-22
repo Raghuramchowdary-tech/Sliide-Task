@@ -7,6 +7,8 @@ data class UserListState(
     val users: List<User> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val hasMorePages: Boolean = true,
     val error: DomainError? = null,
     val deleteConfirmUser: User? = null,
     val lastDeletedUser: User? = null,
@@ -14,8 +16,8 @@ data class UserListState(
 )
 
 sealed interface UserListIntent {
-    data object LoadUsers : UserListIntent
     data object RefreshUsers : UserListIntent
+    data object LoadMore : UserListIntent
     data class RequestDelete(val user: User) : UserListIntent
     data object DismissDeleteConfirm : UserListIntent
     data object ConfirmDelete : UserListIntent
@@ -28,6 +30,8 @@ sealed interface UserListIntent {
 sealed interface UserListResult {
     data object Loading : UserListResult
     data object Refreshing : UserListResult
+    data object LoadingMore : UserListResult
+    data class PageLoaded(val hasMore: Boolean) : UserListResult
     data class UsersLoaded(val users: List<User>) : UserListResult
     data class Error(val error: DomainError) : UserListResult
     data object ErrorDismissed : UserListResult

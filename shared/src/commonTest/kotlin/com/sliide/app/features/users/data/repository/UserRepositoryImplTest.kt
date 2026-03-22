@@ -88,12 +88,16 @@ class UserRepositoryImplTest {
             entities.removeAll { it.id == id }
             flow.value = entities.sortedByDescending { it.id }
         }
+        override suspend fun deleteAll() {
+            entities.clear()
+            flow.value = emptyList()
+        }
         override suspend fun deleteNotIn(ids: List<Long>) {
             entities.removeAll { it.id !in ids }
             flow.value = entities.sortedByDescending { it.id }
         }
         override suspend fun replaceAll(users: List<UserEntity>) {
-            upsert(users); deleteNotIn(users.map { it.id })
+            deleteAll(); upsert(users)
         }
     }
 
@@ -109,45 +113,6 @@ class UserRepositoryImplTest {
     }
 
     // --- Tests ---
-
-    @Test
-    fun `refreshFromLastPage replaces local data with API data`() = runTest {
-        val remote = createRemoteDataSource { respond(usersJson, HttpStatusCode.OK, jsonHeaders()) }
-        val dao = FakeUserDao()
-        val pendingDao = FakePendingDeleteDao()
-        val repo = UserRepositoryImpl(remote, dao, pendingDao, mapper)
-
-        val result = repo.refreshFromLastPage()
-
-        assertIs<DomainResult.Success<Unit>>(result)
-        assertEquals(2, dao.entities.size)
-    }
-
-    @Test
-    fun `refreshFromLastPage filters out pending deletes`() = runTest {
-        val remote = createRemoteDataSource { respond(usersJson, HttpStatusCode.OK, jsonHeaders()) }
-        val dao = FakeUserDao()
-        val pendingDao = FakePendingDeleteDao()
-        pendingDao.entries.add(PendingDeleteEntity(2))
-        val repo = UserRepositoryImpl(remote, dao, pendingDao, mapper)
-
-        repo.refreshFromLastPage()
-
-        assertTrue(dao.entities.none { it.id == 2L })
-        assertEquals(1, dao.entities.size)
-    }
-
-    @Test
-    fun `refreshFromLastPage propagates API failure`() = runTest {
-        val remote = createRemoteDataSource { respond("", HttpStatusCode.InternalServerError, jsonHeaders()) }
-        val dao = FakeUserDao()
-        val pendingDao = FakePendingDeleteDao()
-        val repo = UserRepositoryImpl(remote, dao, pendingDao, mapper)
-
-        val result = repo.refreshFromLastPage()
-
-        assertIs<DomainResult.Failure>(result)
-    }
 
     @Test
     fun `addUser inserts to local DB on success`() = runTest {

@@ -58,7 +58,8 @@ class AddUserViewModelTest {
         ),
     ) : UserRepository {
         override fun observeUsers(): Flow<List<User>> = emptyFlow()
-        override suspend fun refreshFromLastPage(): DomainResult<Unit> = DomainResult.Success(Unit)
+        override suspend fun refresh(): DomainResult<Unit> = DomainResult.Success(Unit)
+        override suspend fun loadNextPage(): Boolean = false
         override suspend fun addUser(request: CreateUserRequest): DomainResult<User> = addResult
         override suspend fun deleteUser(userId: Long): DomainResult<Unit> = DomainResult.Success(Unit)
         override suspend fun restoreUser(user: User): DomainResult<Unit> = DomainResult.Success(Unit)
