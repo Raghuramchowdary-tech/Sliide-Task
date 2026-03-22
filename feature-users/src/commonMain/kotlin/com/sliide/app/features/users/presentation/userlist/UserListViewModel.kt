@@ -46,7 +46,7 @@ class UserListViewModel(
         emit(UserListResult.Loading)
         viewModelScope.launch {
             when (val result = repository.refresh()) {
-                is DomainResult.Success -> emit(UserListResult.PageLoaded(hasMore = true))
+                is DomainResult.Success -> emit(UserListResult.PageLoaded(hasMore = result.data))
                 is DomainResult.Failure -> emit(UserListResult.Error(result.error))
             }
         }
@@ -56,14 +56,15 @@ class UserListViewModel(
         emit(UserListResult.Refreshing)
         viewModelScope.launch {
             when (val result = repository.refresh()) {
-                is DomainResult.Success -> emit(UserListResult.PageLoaded(hasMore = true))
+                is DomainResult.Success -> emit(UserListResult.PageLoaded(hasMore = result.data))
                 is DomainResult.Failure -> emit(UserListResult.Error(result.error))
             }
         }
     }
 
     private fun loadMore() {
-        if (_state.value.isLoadingMore || !_state.value.hasMorePages) return
+        val s = _state.value
+        if (s.isLoadingMore || !s.hasMorePages) return
         emit(UserListResult.LoadingMore)
         viewModelScope.launch {
             val hasMore = repository.loadNextPage()

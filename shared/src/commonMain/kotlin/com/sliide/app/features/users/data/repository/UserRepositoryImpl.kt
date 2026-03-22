@@ -5,7 +5,6 @@ import com.sliide.app.core.common.toDomainResult
 import com.sliide.app.features.users.data.local.PendingDeleteDao
 import com.sliide.app.features.users.data.local.PendingDeleteEntity
 import com.sliide.app.features.users.data.local.UserDao
-import com.sliide.app.features.users.data.local.UserEntity
 import com.sliide.app.features.users.data.mapper.UserMapper
 import com.sliide.app.features.users.data.remote.UserRemoteDataSource
 import com.sliide.app.features.users.domain.model.CreateUserRequest
@@ -23,33 +22,38 @@ internal class UserRepositoryImpl(
 
     private var totalPages: Int = 1
     private var currentPage: Int? = null
+    private var nextSortOrder: Long = 0
 
     override fun observeUsers(): Flow<List<User>> =
         dao.observeAll().map { entities -> entities.map(mapper::entityToDomain) }
 
-    override suspend fun refresh(): DomainResult<Unit> {
-        // Fetch page 1 to get totalPages
+    override suspend fun refresh(): DomainResult<Boolean> {
         when (val firstResult = remoteDataSource.fetchUsers(page = 1)) {
             is DomainResult.Failure -> return firstResult
             is DomainResult.Success -> { totalPages = firstResult.data.second }
         }
-        // Load backwards from last page until we have enough for a full screen
-        val allEntities = mutableListOf<UserEntity>()
+
+        val allDtos = mutableListOf<com.sliide.app.features.users.data.remote.UserDto>()
         var page = totalPages
-        while (page >= 1 && allEntities.size < 20) {
+        while (page >= 1 && allDtos.size < 20) {
             when (val result = remoteDataSource.fetchUsers(page = page)) {
                 is DomainResult.Failure -> return result
                 is DomainResult.Success -> {
-                    allEntities.addAll(result.data.first.map(mapper::dtoToEntity))
+                    allDtos.addAll(result.data.first)
                     page--
                 }
             }
         }
+
         currentPage = page + 1
+        nextSortOrder = 0
         val pendingIds = pendingDeleteDao.getAll().map { it.userId }.toSet()
-        val filtered = allEntities.filter { it.id !in pendingIds }
-        dao.upsert(filtered)
-        return DomainResult.Success(Unit)
+        val entities = allDtos
+            .filter { it.id !in pendingIds }
+            .map { dto -> mapper.dtoToEntity(dto).copy(sortOrder = nextSortOrder++) }
+        dao.replaceAll(entities)
+        val hasMore = (currentPage ?: 1) > 1
+        return DomainResult.Success(hasMore)
     }
 
     override suspend fun loadNextPage(): Boolean {
@@ -60,8 +64,9 @@ internal class UserRepositoryImpl(
             is DomainResult.Success -> {
                 currentPage = nextPage
                 val pendingIds = pendingDeleteDao.getAll().map { it.userId }.toSet()
-                val entities = result.data.first.map(mapper::dtoToEntity)
+                val entities = result.data.first
                     .filter { it.id !in pendingIds }
+                    .map { dto -> mapper.dtoToEntity(dto).copy(sortOrder = nextSortOrder++) }
                 dao.upsert(entities)
                 nextPage > 1
             }
@@ -73,7 +78,7 @@ internal class UserRepositoryImpl(
         return when (val result = remoteDataSource.createUser(body)) {
             is DomainResult.Failure -> result
             is DomainResult.Success -> {
-                val entity = mapper.dtoToEntity(result.data)
+                val entity = mapper.dtoToEntity(result.data).copy(sortOrder = -1)
                 dao.insert(entity)
                 DomainResult.Success(mapper.entityToDomain(entity))
             }

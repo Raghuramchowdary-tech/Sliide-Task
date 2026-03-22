@@ -37,7 +37,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -53,8 +52,6 @@ import com.sliide.app.features.users.presentation.userlist.UserListIntent
 import com.sliide.app.features.users.presentation.userlist.UserListState
 import com.sliide.app.features.users.presentation.userlist.UserListViewModel
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -95,25 +92,11 @@ fun UserListScreen(
         }
     }
 
-    // Scroll to top when loading completes
-    LaunchedEffect(Unit) {
-        snapshotFlow { state.isLoading }
-            .distinctUntilChanged()
-            .filter { !it }
-            .collect { listState.scrollToItem(0) }
-    }
-
-    // Detect scroll near bottom to trigger load more
-    LaunchedEffect(listState) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            lastVisibleItem to totalItems
-        }.distinctUntilChanged().collect { (lastVisible, total) ->
-            if (total > 0 && lastVisible >= total - 3) {
-                viewModel.onIntent(UserListIntent.LoadMore)
-            }
+    // Load more when user scrolls to the bottom
+    val canScrollForward = listState.canScrollForward
+    LaunchedEffect(canScrollForward) {
+        if (!canScrollForward && state.users.isNotEmpty()) {
+            viewModel.onIntent(UserListIntent.LoadMore)
         }
     }
 

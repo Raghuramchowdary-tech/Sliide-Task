@@ -55,7 +55,7 @@ class UserListViewModelTest {
         val usersFlow = MutableSharedFlow<List<User>>(replay = 1)
         var deleteResult: DomainResult<Unit> = DomainResult.Success(Unit)
         var restoreResult: DomainResult<Unit> = DomainResult.Success(Unit)
-        var refreshResult: DomainResult<Unit> = DomainResult.Success(Unit)
+        var refreshResult: DomainResult<Boolean> = DomainResult.Success(true)
         var loadNextPageResult: Boolean = false
 
         init {
@@ -63,7 +63,7 @@ class UserListViewModelTest {
         }
 
         override fun observeUsers(): Flow<List<User>> = usersFlow
-        override suspend fun refresh(): DomainResult<Unit> = refreshResult
+        override suspend fun refresh(): DomainResult<Boolean> = refreshResult
         override suspend fun loadNextPage(): Boolean = loadNextPageResult
         override suspend fun addUser(request: CreateUserRequest): DomainResult<User> =
             DomainResult.Failure(DomainError.Unknown())

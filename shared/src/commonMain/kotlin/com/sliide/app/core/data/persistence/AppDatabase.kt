@@ -9,7 +9,7 @@ import com.sliide.app.features.users.data.local.PendingDeleteEntity
 import com.sliide.app.features.users.data.local.UserDao
 import com.sliide.app.features.users.data.local.UserEntity
 
-@Database(entities = [UserEntity::class, PendingDeleteEntity::class], version = 2)
+@Database(entities = [UserEntity::class, PendingDeleteEntity::class], version = 3)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao

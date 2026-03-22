@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface UserRepository {
     fun observeUsers(): Flow<List<User>>
-    suspend fun refresh(): DomainResult<Unit>
+    suspend fun refresh(): DomainResult<Boolean>
     suspend fun loadNextPage(): Boolean
     suspend fun addUser(request: CreateUserRequest): DomainResult<User>
     suspend fun deleteUser(userId: Long): DomainResult<Unit>

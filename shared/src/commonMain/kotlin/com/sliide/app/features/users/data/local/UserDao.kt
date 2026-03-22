@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserDao {
-    @Query("SELECT * FROM users ORDER BY id DESC")
+    @Query("SELECT * FROM users ORDER BY sortOrder ASC")
     fun observeAll(): Flow<List<UserEntity>>
 
     @Upsert

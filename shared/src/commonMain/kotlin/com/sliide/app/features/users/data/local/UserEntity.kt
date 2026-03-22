@@ -11,4 +11,5 @@ data class UserEntity(
     val gender: String,
     val status: String,
     val createdAtEpoch: Long,
+    val sortOrder: Long = 0,
 )
